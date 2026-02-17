@@ -33,67 +33,70 @@ const AudioContext = window.AudioContext || window.webkitAudioContext;
 const audioCtx = new AudioContext();
 
 class SoundManager {
-    playJump() {
+    constructor() {
+        this.bgmOscs = [];
+        this.isPlayingBGM = false;
+    }
+
+    playTone(freq, type, duration, vol = 0.1) {
         if (audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.1);
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    playJump() {
+        this.playTone(150, 'square', 0.1);
     }
 
     playCoin() {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(900, audioCtx.currentTime);
-        osc.frequency.setValueAtTime(1200, audioCtx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.3);
+        this.playTone(900, 'sine', 0.1);
+        setTimeout(() => this.playTone(1200, 'sine', 0.2), 50);
     }
 
     playHit() {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(100, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.2);
+        this.playTone(100, 'sawtooth', 0.2);
     }
     
     playPowerUp() {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        // Simple arpeggio
         [440, 554, 659].forEach((freq, i) => {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.value = freq;
-            const startTime = audioCtx.currentTime + i * 0.1;
-            gain.gain.setValueAtTime(0.1, startTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start(startTime);
-            osc.stop(startTime + 0.2);
+            setTimeout(() => this.playTone(freq, 'sine', 0.2), i * 100);
         });
+    }
+
+    playFireball() {
+        this.playTone(300, 'triangle', 0.1);
+    }
+
+    startBGM() {
+        if (this.isPlayingBGM) return;
+        this.isPlayingBGM = true;
+        this.playBGMLoop();
+    }
+
+    playBGMLoop() {
+        if (!this.isPlayingBGM) return;
+        // Simple bassline loop
+        const sequence = [110, 110, 130, 110, 146, 130];
+        let note = 0;
+        
+        this.bgmInterval = setInterval(() => {
+            if (!gameRunning) {
+                clearInterval(this.bgmInterval);
+                this.isPlayingBGM = false;
+                return;
+            }
+            // Very quiet background bass
+            this.playTone(sequence[note % sequence.length], 'triangle', 0.2, 0.05);
+            note++;
+        }, 300);
     }
 }
 const sounds = new SoundManager();
@@ -102,17 +105,21 @@ const sounds = new SoundManager();
 const keys = {
     right: false,
     left: false,
-    up: false
+    up: false,
+    shoot: false
 };
 
+// Keyboard
 window.addEventListener('keydown', (e) => {
     if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
     if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') {
-        if (!keys.up) { // Prevent rapid fire holding
-             player.jump();
-        }
+        if (!keys.up) player.jump();
         keys.up = true;
+    }
+    if (e.code === 'KeyF' || e.code === 'ShiftLeft') {
+        if (!keys.shoot) player.shoot();
+        keys.shoot = true;
     }
 });
 
@@ -120,42 +127,149 @@ window.addEventListener('keyup', (e) => {
     if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
     if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') keys.up = false;
+    if (e.code === 'KeyF' || e.code === 'ShiftLeft') keys.shoot = false;
 });
 
+// Mobile Controls
+function setupMobileControls() {
+    const btnLeft = document.getElementById('btn-left');
+    const btnRight = document.getElementById('btn-right');
+    const btnJump = document.getElementById('btn-jump'); // Map jump to A
+    const btnAction = document.getElementById('btn-action'); // Map shoot to Fire
+    const btnDown = document.getElementById('btn-down'); // Not used yet but good for ducking
+
+    const addTouch = (elem, key, action) => {
+        elem.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; if(action) action(); });
+        elem.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
+        elem.addEventListener('mousedown', (e) => { e.preventDefault(); keys[key] = true; if(action) action(); });
+        elem.addEventListener('mouseup', (e) => { e.preventDefault(); keys[key] = false; });
+    };
+
+    addTouch(btnLeft, 'left');
+    addTouch(btnRight, 'right');
+    addTouch(btnJump, 'up', () => player.jump());
+    addTouch(btnAction, 'shoot', () => player.shoot());
+    
+    // Show controls if likely on mobile (or just always show them as requested via CSS media query, but let's force check)
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        document.getElementById('mobile-controls').style.display = 'flex';
+    }
+}
+setupMobileControls();
+
+
+// Background Parallax
+class Background {
+    constructor() {
+        this.clouds = [];
+        for(let i=0; i<5; i++) {
+            this.clouds.push({
+                x: Math.random() * SCREEN_WIDTH,
+                y: Math.random() * (SCREEN_HEIGHT/2),
+                speed: 0.2 + Math.random() * 0.3
+            });
+        }
+    }
+
+    draw(ctx, camX) {
+        ctx.fillStyle = '#87CEEB';
+        ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+        
+        this.clouds.forEach(c => {
+            let screenX = (c.x - camX * c.speed) % (SCREEN_WIDTH + 200);
+            if (screenX < -200) screenX += SCREEN_WIDTH + 200;
+            // Draw cloud sprite
+            // Assuming we have a cloud sprite, if not draw ellipses
+            if (window.SPRITES && SPRITES.cloud) {
+                ctx.drawImage(SPRITES.cloud, screenX, c.y);
+            } else {
+                ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                ctx.beginPath();
+                ctx.arc(screenX, c.y, 30, 0, Math.PI*2);
+                ctx.fill();
+            }
+        });
+    }
+}
+const bg = new Background();
+
+
 // Entities
+class Fireball {
+    constructor(x, y, dir) {
+        this.x = x;
+        this.y = y;
+        this.width = 16;
+        this.height = 16;
+        this.velX = dir * 8;
+        this.velY = 0;
+        this.active = true;
+    }
+
+    update() {
+        this.x += this.velX;
+        this.velY += GRAVITY;
+        this.y += this.velY;
+        
+        // Bounce check
+        if (this.y > SCREEN_HEIGHT) this.active = false;
+        
+        platforms.forEach(p => {
+             if (this.x < p.x + p.width && this.x + this.width > p.x &&
+                 this.y + this.height > p.y && this.y < p.y + p.height) {
+                 this.velY = -5; // Bounce
+             }
+        });
+    }
+
+    draw(ctx, camX) {
+        if (window.SPRITES && SPRITES.fireball) {
+            ctx.drawImage(SPRITES.fireball, this.x - camX, this.y);
+        } else {
+            ctx.fillStyle = 'orange';
+            ctx.beginPath();
+            ctx.arc(this.x - camX, this.y, 8, 0, Math.PI*2);
+            ctx.fill();
+        }
+    }
+}
+
 class Player {
     constructor() {
-        this.baseWidth = 30;
-        this.baseHeight = 30;
-        this.width = 30;
-        this.height = 30;
+        this.width = 36;
+        this.height = 42;
         this.x = 100;
-        this.y = SCREEN_HEIGHT - 150;
+        this.y = SCREEN_HEIGHT - 300; // Start higher to drop onto platform
         this.velX = 0;
         this.velY = 0;
         this.isGrounded = false;
-        this.color = '#ff0000'; // Mario Red
+        this.canDoubleJump = false;
+        this.facingRight = true;
         
-        // Power-up states
         this.isBig = false;
         this.isInvincible = false;
         this.invincibleTimer = 0;
+        this.fireballs = [];
     }
 
     update() {
         // Movement
-        if (keys.right) this.velX = PLAYER_SPEED;
-        else if (keys.left) this.velX = -PLAYER_SPEED;
-        else this.velX = 0;
+        if (keys.right) {
+            this.velX = PLAYER_SPEED;
+            this.facingRight = true;
+        } else if (keys.left) {
+            this.velX = -PLAYER_SPEED;
+            this.facingRight = false;
+        } else {
+            this.velX = 0;
+        }
 
         // Apply Gravity
         this.velY += GRAVITY;
-        
-        // Apply Velocity
         this.x += this.velX;
         this.y += this.velY;
 
-        // Floor Collision
+        // Floor Collision (Death)
         if (this.y + this.height > SCREEN_HEIGHT + 200) {
             sounds.playHit();
             gameOver();
@@ -164,26 +278,40 @@ class Player {
         // Invincibility Timer
         if (this.isInvincible) {
             this.invincibleTimer--;
-            if (this.invincibleTimer <= 0) {
-                this.isInvincible = false;
-            }
+            if (this.invincibleTimer <= 0) this.isInvincible = false;
         }
+
+        // Update Fireballs
+        this.fireballs.forEach(f => f.update());
+        this.fireballs = this.fireballs.filter(f => f.active && f.x > cameraX && f.x < cameraX + SCREEN_WIDTH);
     }
 
     jump() {
         if (this.isGrounded) {
             this.velY = JUMP_FORCE;
             this.isGrounded = false;
+            this.canDoubleJump = true;
             sounds.playJump();
+        } else if (this.canDoubleJump) {
+            this.velY = JUMP_FORCE * 0.8;
+            this.canDoubleJump = false;
+            sounds.playJump();
+            // Spin effect or particle could go here
+        }
+    }
+
+    shoot() {
+        if (this.isBig) { // Only shoot if powered up (or change design to always allow)
+             // Let's allow shooting always for fun, or require 'flower' powerup. 
+             // Simplification: Always allow for now as requested "Fireballs" feature
+             sounds.playFireball();
+             this.fireballs.push(new Fireball(this.x + (this.facingRight ? this.width : -16), this.y + 10, this.facingRight ? 1 : -1));
         }
     }
     
     grow() {
         if (!this.isBig) {
             this.isBig = true;
-            this.width = 40;
-            this.height = 50;
-            this.y -= 20; // Pop up so we don't clip ground
             sounds.playPowerUp();
         }
     }
@@ -191,10 +319,8 @@ class Player {
     shrink() {
         if (this.isBig) {
             this.isBig = false;
-            this.width = this.baseWidth;
-            this.height = this.baseHeight;
             this.isInvincible = true;
-            this.invincibleTimer = 60; // 1 second i-frames
+            this.invincibleTimer = 60;
             sounds.playHit();
         } else {
             sounds.playHit();
@@ -204,28 +330,30 @@ class Player {
     
     makeInvincible() {
         this.isInvincible = true;
-        this.invincibleTimer = 600; // 10 seconds
+        this.invincibleTimer = 600;
         sounds.playPowerUp();
     }
 
     draw(ctx, camX) {
-        if (this.isInvincible && Math.floor(Date.now() / 50) % 2 === 0) {
-             // Flicker effect
-             ctx.globalAlpha = 0.5;
-        }
+        // Draw Fireballs
+        this.fireballs.forEach(f => f.draw(ctx, camX));
+
+        // Player Flicker
+        if (this.isInvincible && Math.floor(Date.now() / 50) % 2 === 0) ctx.globalAlpha = 0.5;
         
-        ctx.fillStyle = this.isInvincible ? '#00ffff' : this.color;
-        ctx.fillRect(this.x - camX, this.y, this.width, this.height);
+        let sprite = SPRITES.player.idle;
+        // Animation Logic
+        if (!this.isGrounded) sprite = SPRITES.player.jump;
+        else if (Math.abs(this.velX) > 0 && Math.floor(Date.now() / 100) % 2 === 0) sprite = SPRITES.player.jump; // Simple run anim
+
+        ctx.save();
+        ctx.translate(this.x - camX + (this.facingRight ? 0 : this.width), this.y);
+        if (!this.facingRight) ctx.scale(-1, 1);
+        
+        ctx.drawImage(sprite, 0, 0, this.width, this.height);
+        
+        ctx.restore();
         ctx.globalAlpha = 1.0;
-        
-        // Eyes
-        ctx.fillStyle = 'white';
-        let eyeOffsetX = this.velX >= 0 ? (this.width - 12) : 4;
-        let eyeY = this.isBig ? 10 : 4;
-        ctx.fillRect(this.x - camX + eyeOffsetX, this.y + eyeY, 8, 8);
-        ctx.fillStyle = 'black';
-        let pupilOffsetX = this.velX >= 0 ? (this.width - 8) : 4;
-        ctx.fillRect(this.x - camX + pupilOffsetX, this.y + eyeY + 2, 4, 4);
     }
 }
 
@@ -235,15 +363,23 @@ class Platform {
         this.y = y;
         this.width = width;
         this.height = height;
-        this.color = '#8B4513';
-        this.grassColor = '#32CD32';
     }
 
     draw(ctx, camX) {
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x - camX, this.y, this.width, this.height);
-        ctx.fillStyle = this.grassColor;
-        ctx.fillRect(this.x - camX, this.y, this.width, 10);
+        // Tiling
+        let sprite = SPRITES.ground;
+        if (sprite) {
+             for(let bx = 0; bx < this.width; bx += 40) {
+                 for(let by = 0; by < this.height; by += 40) {
+                     let w = Math.min(40, this.width - bx);
+                     let h = Math.min(40, this.height - by);
+                     ctx.drawImage(sprite, 0, 0, w, h, this.x - camX + bx, this.y + by, w, h);
+                 }
+             }
+        } else {
+             ctx.fillStyle = '#8B4513';
+             ctx.fillRect(this.x - camX, this.y, this.width, this.height);
+        }
     }
 }
 
@@ -251,13 +387,12 @@ class Enemy {
     constructor(x, y, range) {
         this.x = x;
         this.y = y;
-        this.width = 30;
-        this.height = 30;
+        this.width = 36;
+        this.height = 36; // Adjusted for sprite
         this.startX = x;
         this.range = range;
         this.speed = 2;
         this.dir = 1;
-        this.color = '#800000'; // Goomba
         this.isDead = false;
     }
 
@@ -271,14 +406,14 @@ class Enemy {
 
     draw(ctx, camX) {
         if (this.isDead) return;
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x - camX, this.y, this.width, this.height);
-        ctx.fillStyle = 'white';
-        ctx.fillRect(this.x - camX + 5, this.y + 5, 8, 8);
-        ctx.fillRect(this.x - camX + 17, this.y + 5, 8, 8);
-        ctx.fillStyle = 'black';
-        ctx.fillRect(this.x - camX + 7, this.y + 7, 4, 4);
-        ctx.fillRect(this.x - camX + 19, this.y + 7, 4, 4);
+        if (SPRITES.goomba) {
+            // Simple bounce anim
+            let bounceY = Math.abs(Math.sin(Date.now()/100)) * 5;
+            ctx.drawImage(SPRITES.goomba, this.x - camX, this.y - bounceY, this.width, this.height);
+        } else {
+            ctx.fillStyle = 'brown';
+            ctx.fillRect(this.x - camX, this.y, this.width, this.height);
+        }
     }
 }
 
@@ -288,25 +423,28 @@ class FlyingEnemy extends Enemy {
         this.color = '#FF4500'; // Orange Red
         this.baseY = y;
         this.angle = 0;
+        this.width = 36;
+        this.height = 24;
     }
     
     update() {
         if (this.isDead) return;
         this.x -= 2; // Always moves left
-        this.angle += 0.1;
+        this.angle += 0.05;
         this.y = this.baseY + Math.sin(this.angle) * 50;
     }
     
     draw(ctx, camX) {
         if (this.isDead) return;
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x - camX + 15, this.y + 15, 15, 0, Math.PI * 2);
-        ctx.fill();
-        // Wings
-        ctx.fillStyle = 'white';
-        ctx.fillRect(this.x - camX - 5, this.y + 5, 10, 10);
-        ctx.fillRect(this.x - camX + 25, this.y + 5, 10, 10);
+        if (SPRITES.bird) {
+            let flap = Math.floor(Date.now() / 100) % 2 === 0 ? 0 : 5;
+            ctx.drawImage(SPRITES.bird, this.x - camX, this.y + flap, this.width, this.height);
+        } else {
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x - camX + 15, this.y + 15, 15, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 }
 
@@ -314,35 +452,20 @@ class PowerUp {
     constructor(x, y, type) {
         this.x = x;
         this.y = y;
-        this.width = 20;
-        this.height = 20;
-        this.type = type; // 'mushroom' or 'star'
+        this.width = 30;
+        this.height = 30;
+        this.type = type; 
         this.collected = false;
     }
     
     draw(ctx, camX) {
         if (this.collected) return;
-        if (this.type === 'mushroom') {
-            ctx.fillStyle = 'red';
+        let sprite = this.type === 'mushroom' ? SPRITES.mushroom : SPRITES.star;
+        if (sprite) {
+            ctx.drawImage(sprite, this.x - camX, this.y, this.width, this.height);
+        } else {
+            ctx.fillStyle = this.type === 'mushroom' ? 'red' : 'yellow';
             ctx.fillRect(this.x - camX, this.y, 20, 20);
-            ctx.fillStyle = 'white';
-            ctx.fillRect(this.x - camX + 5, this.y + 5, 5, 5);
-            ctx.fillRect(this.x - camX + 12, this.y + 10, 5, 5);
-        } else if (this.type === 'star') {
-            ctx.fillStyle = 'yellow';
-            ctx.beginPath();
-            ctx.moveTo(this.x - camX + 10, this.y);
-            ctx.lineTo(this.x - camX + 13, this.y + 7);
-            ctx.lineTo(this.x - camX + 20, this.y + 7);
-            ctx.lineTo(this.x - camX + 15, this.y + 12);
-            ctx.lineTo(this.x - camX + 17, this.y + 20);
-            ctx.lineTo(this.x - camX + 10, this.y + 15);
-            ctx.lineTo(this.x - camX + 3, this.y + 20);
-            ctx.lineTo(this.x - camX + 5, this.y + 12);
-            ctx.lineTo(this.x - camX, this.y + 7);
-            ctx.lineTo(this.x - camX + 7, this.y + 7);
-            ctx.closePath();
-            ctx.fill();
         }
     }
 }
@@ -351,7 +474,8 @@ class Coin {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.radius = 10;
+        this.width = 24;
+        this.height = 24;
         this.collected = false;
         this.floatOffset = 0;
     }
@@ -362,13 +486,14 @@ class Coin {
 
     draw(ctx, camX) {
         if (this.collected) return;
-        ctx.fillStyle = '#FFD700'; // Gold
-        ctx.beginPath();
-        ctx.arc(this.x - camX + this.radius, this.y + this.floatOffset + this.radius, this.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#DAA520';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        if (SPRITES.coin) {
+            ctx.drawImage(SPRITES.coin, this.x - camX, this.y + this.floatOffset, this.width, this.height);
+        } else {
+            ctx.fillStyle = 'gold';
+            ctx.beginPath();
+            ctx.arc(this.x - camX + 10, this.y + 10 + this.floatOffset, 10, 0, Math.PI*2);
+            ctx.fill();
+        }
     }
 }
 
@@ -383,17 +508,16 @@ let powerups = [];
 let lastPlatformX = 0;
 
 function generateChunk() {
-    let startX = lastPlatformX;
-
     while (lastPlatformX < cameraX + SCREEN_WIDTH * 2) {
         let gap = Math.random() * 150 + 50;
-        let width = Math.random() * 300 + 100;
+        let width = Math.floor((Math.random() * 300 + 100) / 40) * 40; // Snap to grid
         let height = 50 + Math.random() * 100;
         let y = SCREEN_HEIGHT - height;
+        y = Math.floor(y / 40) * 40; // Snap y to grid slightly
 
         let prevY = platforms.length > 0 ? platforms[platforms.length - 1].y : SCREEN_HEIGHT - 100;
         y = prevY + (Math.random() * 160 - 80); 
-        if (y > SCREEN_HEIGHT - 50) y = SCREEN_HEIGHT - 50;
+        if (y > SCREEN_HEIGHT - 80) y = SCREEN_HEIGHT - 80;
         if (y < 200) y = 200;
 
         let newPlat = new Platform(lastPlatformX + gap, y, width, SCREEN_HEIGHT - y);
@@ -402,7 +526,7 @@ function generateChunk() {
 
         // Enemies
         if (width > 200 && Math.random() > 0.4) {
-            enemies.push(new Enemy(newPlat.x + 50, newPlat.y - 30, width - 100));
+            enemies.push(new Enemy(newPlat.x + 50, newPlat.y - 36, width - 100));
         } else if (Math.random() > 0.8) {
              // Flying Enemy in the gap
              enemies.push(new FlyingEnemy(newPlat.x - 50, newPlat.y - 100, 0));
@@ -418,7 +542,7 @@ function generateChunk() {
         }
         
         // Powerups
-        if (Math.random() > 0.9) {
+        if (Math.random() > 0.8) {
             let type = Math.random() > 0.5 ? 'mushroom' : 'star';
             powerups.push(new PowerUp(newPlat.x + width/2, newPlat.y - 30, type));
         }
@@ -440,9 +564,9 @@ function initGame() {
     cameraX = 0;
     lastPlatformX = 0;
 
-    let startPlat = new Platform(50, SCREEN_HEIGHT - 100, 500, 100);
+    let startPlat = new Platform(50, SCREEN_HEIGHT - 120, 520, 120);
     platforms.push(startPlat);
-    lastPlatformX = 50 + 500;
+    lastPlatformX = 50 + 520;
 
     generateChunk();
     
@@ -453,6 +577,7 @@ function initGame() {
     gameOverScreen.classList.remove('active');
     gameOverScreen.classList.add('hidden');
     
+    sounds.startBGM();
     requestAnimationFrame(gameLoop);
 }
 
@@ -467,11 +592,12 @@ function checkCollisions() {
             player.y + player.height > plat.y) {
             
             let prevY = player.y - player.velY;
-            if (prevY + player.height <= plat.y) {
+            if (prevY + player.height <= plat.y + 10) { // Tolerance
                 player.y = plat.y - player.height;
                 player.velY = 0;
                 player.isGrounded = true;
-            } else if (prevY >= plat.y + plat.height) {
+                player.canDoubleJump = true; // Reset double jump
+            } else if (prevY >= plat.y + plat.height - 10) {
                 player.y = plat.y + plat.height;
                 player.velY = 0;
             } else {
@@ -481,6 +607,20 @@ function checkCollisions() {
             }
         }
     }
+
+    // Fireball vs Enemies
+    player.fireballs.forEach(f => {
+        if (!f.active) return;
+        enemies.forEach(e => {
+            if (!e.isDead && f.x < e.x + e.width && f.x + f.width > e.x &&
+                f.y < e.y + e.height && f.y + f.height > e.y) {
+                e.isDead = true;
+                f.active = false;
+                score += 50;
+                sounds.playHit();
+            }
+        });
+    });
 
     // Enemy Collision
     for (let enemy of enemies) {
@@ -508,9 +648,9 @@ function checkCollisions() {
     // Coin Collision
     for (let coin of coins) {
         if (!coin.collected &&
-            player.x < coin.x + coin.radius * 2 &&
+            player.x < coin.x + coin.width &&
             player.x + player.width > coin.x &&
-            player.y < coin.y + coin.radius * 2 &&
+            player.y < coin.y + coin.height &&
             player.y + player.height > coin.y) {
             
             coin.collected = true;
@@ -544,6 +684,7 @@ function gameOver() {
     finalScoreEl.innerText = score;
     gameOverScreen.classList.remove('hidden');
     gameOverScreen.classList.add('active');
+    sounds.isPlayingBGM = false;
 }
 
 function update() {
@@ -564,7 +705,8 @@ function update() {
 }
 
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Clear Background
+    bg.draw(ctx, cameraX);
 
     platforms.forEach(p => p.draw(ctx, cameraX));
     enemies.forEach(e => e.draw(ctx, cameraX));
@@ -582,7 +724,6 @@ function gameLoop() {
 }
 
 document.getElementById('start-btn').addEventListener('click', () => {
-    // Resume audio context on user interaction
     if (audioCtx.state === 'suspended') audioCtx.resume();
     initGame();
 });
