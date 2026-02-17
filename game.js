@@ -14,34 +14,30 @@ const TILE_SIZE = 40;
 
 // Dynamic Canvas Sizing
 function resizeGame() {
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
+    let newWidth = window.innerWidth;
+    let newHeight = window.innerHeight;
 
     const mobileControlsElement = document.getElementById('mobile-controls');
+    // Only consider controls height if they are actually displayed (via CSS media query)
     const isMobileControlsVisible = window.getComputedStyle(mobileControlsElement).display !== 'none';
     const mobileControlsReservedHeight = isMobileControlsVisible ? mobileControlsElement.offsetHeight : 0;
     
-    // Calculate the maximum space the game can occupy, considering mobile controls
-    const maxGameAreaWidth = windowWidth;
-    const maxGameAreaHeight = windowHeight - mobileControlsReservedHeight;
+    let availableGameHeight = newHeight - mobileControlsReservedHeight;
 
-    let gameDisplayWidth;
-    let gameDisplayHeight;
+    let currentAspectRatio = newWidth / availableGameHeight;
 
-    // Determine the actual display dimensions for the game while maintaining aspect ratio
-    // If the maximum game area is wider than the game's aspect ratio
-    if (maxGameAreaWidth / maxGameAreaHeight > GAME_ASPECT_RATIO) {
-        gameDisplayHeight = maxGameAreaHeight;
-        gameDisplayWidth = gameDisplayHeight * GAME_ASPECT_RATIO;
-    } else { // If the maximum game area is taller or matches the game's aspect ratio
-        gameDisplayWidth = maxGameAreaWidth;
-        gameDisplayHeight = gameDisplayWidth / GAME_ASPECT_RATIO;
+    if (currentAspectRatio > GAME_ASPECT_RATIO) {
+        // Window is wider than game aspect ratio, constrain by available height
+        newWidth = availableGameHeight * GAME_ASPECT_RATIO;
+    } else {
+        // Window is taller than game aspect ratio, constrain by width
+        availableGameHeight = newWidth / GAME_ASPECT_RATIO;
     }
 
-    // Set the canvas style dimensions
-    canvas.style.width = `${gameDisplayWidth}px`;
-    canvas.style.height = `${gameDisplayHeight}px`;
-    
+    // Now set the canvas style dimensions
+    canvas.style.width = `${newWidth}px`;
+    canvas.style.height = `${availableGameHeight}px`;
+
     // Internal canvas dimensions remain fixed (e.g., 960x540)
     canvas.width = BASE_GAME_WIDTH;
     canvas.height = BASE_GAME_HEIGHT;
