@@ -2,8 +2,8 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Game Constants
-const BASE_GAME_WIDTH = 480;
-const BASE_GAME_HEIGHT = 270;
+const BASE_GAME_WIDTH = 960; // Adjusted for 16:9 aspect ratio (e.g., 960x540)
+const BASE_GAME_HEIGHT = 540; // Adjusted for 16:9 aspect ratio
 
 const GAME_ASPECT_RATIO = BASE_GAME_WIDTH / BASE_GAME_HEIGHT;
 
