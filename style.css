@@ -7,7 +7,8 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: -webkit-fill-available; /* For iOS Safari */
+    height: 100vh; /* Fallback for other browsers */
     overflow: hidden;
 }
 
@@ -133,12 +134,12 @@ button:hover {
 
 .control-btn {
     pointer-events: auto;
-    width: 60px;
-    height: 60px;
+    width: 70px; /* Slightly larger for better touch targets */
+    height: 70px; /* Slightly larger for better touch targets */
     background: rgba(255, 255, 255, 0.3);
     border: 2px solid rgba(255, 255, 255, 0.5);
     border-radius: 50%;
-    font-size: 24px;
+    font-size: 28px; /* Slightly larger font */
     color: white;
     display: flex;
     justify-content: center;

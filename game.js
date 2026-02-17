@@ -2,22 +2,58 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Game Constants
-const SCREEN_WIDTH = 800;
-const SCREEN_HEIGHT = 600;
+const BASE_GAME_WIDTH = 800;
+const BASE_GAME_HEIGHT = 600;
+const GAME_ASPECT_RATIO = BASE_GAME_WIDTH / BASE_GAME_HEIGHT;
+
+let SCREEN_WIDTH = BASE_GAME_WIDTH;
+let SCREEN_HEIGHT = BASE_GAME_HEIGHT;
+
 const GRAVITY = 0.5;
 const PLAYER_SPEED = 5;
 const JUMP_FORCE = -12;
 const TILE_SIZE = 40;
 
-canvas.width = SCREEN_WIDTH;
-canvas.height = SCREEN_HEIGHT;
+// Dynamic Canvas Sizing
+function resizeGame() {
+    const gameContainer = document.getElementById('game-container');
+    let newWidth = window.innerWidth;
+    let newHeight = window.innerHeight;
+
+    let currentAspectRatio = newWidth / newHeight;
+
+    if (currentAspectRatio > GAME_ASPECT_RATIO) {
+        // Window is wider than game aspect ratio, constrain by height
+        newWidth = newHeight * GAME_ASPECT_RATIO;
+    } else {
+        // Window is taller than game aspect ratio, constrain by width
+        newHeight = newWidth / GAME_ASPECT_RATIO;
+    }
+
+    canvas.style.width = `${newWidth}px`;
+    canvas.style.height = `${newHeight}px`;
+
+    // Set internal canvas dimensions for rendering (might be different from style if scaled)
+    // We render at base resolution and let CSS scale it up or down.
+    canvas.width = BASE_GAME_WIDTH;
+    canvas.height = BASE_GAME_HEIGHT;
+
+    SCREEN_WIDTH = canvas.width;
+    SCREEN_HEIGHT = canvas.height;
+    
+    // Adjust font sizes and button sizes dynamically based on newHeight or newWidth
+    // For now, let's just make sure canvas scales properly, UI elements will be handled in CSS.
+}
+
+window.addEventListener('load', resizeGame);
+window.addEventListener('resize', resizeGame);
 
 // Game State
 let gameRunning = false;
 let score = 0;
 let highScore = localStorage.getItem('infinitePlumberHighScore') || 0;
 let frameCount = 0;
-let cameraX = 0;
+let cameraX; // cameraX will be initialized in initGame()
 
 // Update UI
 const scoreEl = document.getElementById('score');
@@ -561,8 +597,11 @@ function initGame() {
     coins = [];
     powerups = [];
     score = 0;
-    cameraX = 0;
+    cameraX = 0; // Initialize cameraX here
     lastPlatformX = 0;
+
+    // Ensure canvas is correctly sized for the new game
+    resizeGame();
 
     let startPlat = new Platform(50, SCREEN_HEIGHT - 120, 520, 120);
     platforms.push(startPlat);
