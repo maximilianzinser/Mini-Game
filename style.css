@@ -113,7 +113,7 @@ button:hover {
 /* Mobile Controls */
 #mobile-controls {
     position: absolute;
-    bottom: 40px;
+    bottom: 5px; /* Closer to the bottom edge */
     left: 0;
     width: 100%;
     height: 150px;
@@ -133,12 +133,12 @@ button:hover {
 
 .control-btn {
     pointer-events: auto;
-    width: 70px; /* Slightly larger for better touch targets */
-    height: 70px; /* Slightly larger for better touch targets */
+    width: 80px; /* Slightly larger */
+    height: 80px; /* Slightly larger */
     background: rgba(255, 255, 255, 0.3);
     border: 2px solid rgba(255, 255, 255, 0.5);
     border-radius: 50%;
-    font-size: 28px; /* Slightly larger font */
+    font-size: 32px; /* Slightly larger font */
     color: white;
     display: flex;
     justify-content: center;
