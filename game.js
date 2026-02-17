@@ -12,28 +12,12 @@ const PLAYER_SPEED = 5;
 const JUMP_FORCE = -12;
 const TILE_SIZE = 40;
 
-// Dynamic Canvas Sizing
+// Dynamic Canvas Sizing (now CSS-driven)
 function resizeGame() {
-    const gameContainer = document.getElementById('game-container');
-    let newWidth = window.innerWidth;
-    let newHeight = window.innerHeight;
-
-    let currentAspectRatio = newWidth / newHeight;
-
-    if (currentAspectRatio > GAME_ASPECT_RATIO) {
-        // Window is wider than game aspect ratio, constrain by height
-        newWidth = newHeight * GAME_ASPECT_RATIO;
-    } else {
-        // Window is taller than game aspect ratio, constrain by width
-        newHeight = newWidth / GAME_ASPECT_RATIO;
-    }
-
-    canvas.style.width = `${newWidth}px`;
-    canvas.style.height = `${newHeight}px`;
-
-    // Set internal canvas dimensions for rendering (fixed base resolution)
+    // Internal canvas dimensions remain fixed to our base resolution
     canvas.width = BASE_GAME_WIDTH;
     canvas.height = BASE_GAME_HEIGHT;
+    // The canvas element's scaling to fit the screen will be handled by CSS.
 }
 
 window.addEventListener('load', resizeGame);

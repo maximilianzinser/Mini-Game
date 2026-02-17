@@ -4,23 +4,41 @@ body {
     background-color: #202028;
     color: white;
     font-family: 'Courier New', Courier, monospace;
-    display: flex;
+    display: flex; /* Use flexbox to center the main content vertically and horizontally */
     justify-content: center;
     align-items: center;
-    min-height: -webkit-fill-available; /* For iOS Safari */
-    height: 100vh; /* Fallback for other browsers */
+    height: 100vh;
+    min-height: -webkit-fill-available; /* For iOS Safari viewport */
     overflow: hidden;
 }
 
+#wrapper-for-game-and-controls { /* New wrapper to hold game-container and mobile-controls */
+    display: flex;
+    flex-direction: column; /* Stack game and controls vertically */
+    height: 100%; /* Take full height of parent (body) */
+    width: 100%; /* Take full width of parent (body) */
+    max-width: 100%; /* Ensure it doesn't exceed parent width */
+    max-height: 100%; /* Ensure it doesn't exceed parent height */
+    overflow: hidden; /* Hide any overflow */
+}
+
 #game-container {
-    position: relative;
+    position: relative; /* For absolute positioning of ui-layer */
+    flex-grow: 1; /* Allows game-container to take all available space */
+    display: flex; /* Flex container to center the canvas */
+    justify-content: center;
+    align-items: center;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
     border: 4px solid #444;
+    overflow: hidden; /* Hide any canvas overflow */
 }
 
 canvas {
     display: block;
     background-color: #87CEEB; /* Sky blue */
+    max-width: 100%; /* Maximize canvas within game-container */
+    max-height: 100%;
+    object-fit: contain; /* Scale content to fit, maintaining aspect ratio */
 }
 
 #ui-layer {
@@ -106,39 +124,36 @@ button:active {
     transform: translateY(4px);
 }
 
-button:hover {
-    background-color: #45a049;
-}
-
-/* Mobile Controls */
+/* Mobile Controls - now outside game-container */
 #mobile-controls {
-    position: absolute;
-    bottom: 40px;
-    left: 0;
+    /* No absolute positioning needed here, handled by flex parent */
     width: 100%;
-    height: 150px;
+    height: 80px; /* Fixed height for the controls area */
+    min-height: 80px; /* Ensure it takes up space */
     display: flex;
     justify-content: space-between;
-    padding: 0 20px;
+    align-items: center; /* Center buttons vertically within controls area */
+    padding: 0 10px; /* Adjusted padding */
     box-sizing: border-box;
-    pointer-events: none; /* Container passes clicks */
-    display: none; /* Hidden by default on desktop, shown via JS if touch detected or always shown */
+    pointer-events: none; /* Container passes clicks, but inner buttons get events */
+    background-color: rgba(0, 0, 0, 0.4); /* Background for controls area */
+    display: none; /* Hidden by default */
 }
 
 @media (hover: none) and (pointer: coarse) {
     #mobile-controls {
-        display: flex;
+        display: flex; /* Show controls if touch detected */
     }
 }
 
 .control-btn {
     pointer-events: auto;
-    width: 70px; /* Slightly larger for better touch targets */
-    height: 70px; /* Slightly larger for better touch targets */
+    width: 60px; /* Adjusted size */
+    height: 60px; /* Adjusted size */
     background: rgba(255, 255, 255, 0.3);
     border: 2px solid rgba(255, 255, 255, 0.5);
     border-radius: 50%;
-    font-size: 28px; /* Slightly larger font */
+    font-size: 24px; /* Adjusted font size */
     color: white;
     display: flex;
     justify-content: center;
@@ -156,11 +171,11 @@ button:hover {
 
 #dpad {
     display: flex;
-    align-items: flex-end;
+    align-items: center; /* Center dpad buttons vertically within controls height */
 }
 
 #action-buttons {
     display: flex;
-    align-items: flex-end;
+    align-items: center; /* Center action buttons vertically within controls height */
     gap: 10px;
 }
