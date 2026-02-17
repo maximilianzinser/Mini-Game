@@ -2,12 +2,10 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Game Constants
-const BASE_GAME_WIDTH = 800;
-const BASE_GAME_HEIGHT = 600;
-const GAME_ASPECT_RATIO = BASE_GAME_WIDTH / BASE_GAME_HEIGHT;
+const BASE_GAME_WIDTH = 960; // Adjusted for 16:9 aspect ratio (e.g., 960x540)
+const BASE_GAME_HEIGHT = 540; // Adjusted for 16:9 aspect ratio
 
-let SCREEN_WIDTH = BASE_GAME_WIDTH;
-let SCREEN_HEIGHT = BASE_GAME_HEIGHT;
+const GAME_ASPECT_RATIO = BASE_GAME_WIDTH / BASE_GAME_HEIGHT;
 
 const GRAVITY = 0.5;
 const PLAYER_SPEED = 5;
@@ -33,16 +31,9 @@ function resizeGame() {
     canvas.style.width = `${newWidth}px`;
     canvas.style.height = `${newHeight}px`;
 
-    // Set internal canvas dimensions for rendering (might be different from style if scaled)
-    // We render at base resolution and let CSS scale it up or down.
+    // Set internal canvas dimensions for rendering (fixed base resolution)
     canvas.width = BASE_GAME_WIDTH;
     canvas.height = BASE_GAME_HEIGHT;
-
-    SCREEN_WIDTH = canvas.width;
-    SCREEN_HEIGHT = canvas.height;
-    
-    // Adjust font sizes and button sizes dynamically based on newHeight or newWidth
-    // For now, let's just make sure canvas scales properly, UI elements will be handled in CSS.
 }
 
 window.addEventListener('load', resizeGame);
@@ -200,8 +191,8 @@ class Background {
         this.clouds = [];
         for(let i=0; i<5; i++) {
             this.clouds.push({
-                x: Math.random() * SCREEN_WIDTH,
-                y: Math.random() * (SCREEN_HEIGHT/2),
+                x: Math.random() * canvas.width,
+                y: Math.random() * (canvas.height/2),
                 speed: 0.2 + Math.random() * 0.3
             });
         }
@@ -209,11 +200,11 @@ class Background {
 
     draw(ctx, camX) {
         ctx.fillStyle = '#87CEEB';
-        ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         this.clouds.forEach(c => {
-            let screenX = (c.x - camX * c.speed) % (SCREEN_WIDTH + 200);
-            if (screenX < -200) screenX += SCREEN_WIDTH + 200;
+            let screenX = (c.x - camX * c.speed) % (canvas.width + 200);
+            if (screenX < -200) screenX += canvas.width + 200;
             // Draw cloud sprite
             // Assuming we have a cloud sprite, if not draw ellipses
             if (window.SPRITES && SPRITES.cloud) {
@@ -248,7 +239,7 @@ class Fireball {
         this.y += this.velY;
         
         // Bounce check
-        if (this.y > SCREEN_HEIGHT) this.active = false;
+        if (this.y > canvas.height) this.active = false;
         
         platforms.forEach(p => {
              if (this.x < p.x + p.width && this.x + this.width > p.x &&
@@ -275,7 +266,7 @@ class Player {
         this.width = 36;
         this.height = 42;
         this.x = 100;
-        this.y = SCREEN_HEIGHT - 300; // Start higher to drop onto platform
+        this.y = canvas.height - 300; // Start higher to drop onto platform
         this.velX = 0;
         this.velY = 0;
         this.isGrounded = false;
@@ -306,7 +297,7 @@ class Player {
         this.y += this.velY;
 
         // Floor Collision (Death)
-        if (this.y + this.height > SCREEN_HEIGHT + 200) {
+        if (this.y + this.height > canvas.height + 200) {
             sounds.playHit();
             gameOver();
         }
@@ -319,7 +310,7 @@ class Player {
 
         // Update Fireballs
         this.fireballs.forEach(f => f.update());
-        this.fireballs = this.fireballs.filter(f => f.active && f.x > cameraX && f.x < cameraX + SCREEN_WIDTH);
+        this.fireballs = this.fireballs.filter(f => f.active && f.x > cameraX && f.x < cameraX + canvas.width);
     }
 
     jump() {
@@ -544,19 +535,19 @@ let powerups = [];
 let lastPlatformX = 0;
 
 function generateChunk() {
-    while (lastPlatformX < cameraX + SCREEN_WIDTH * 2) {
+    while (lastPlatformX < cameraX + canvas.width * 2) {
         let gap = Math.random() * 150 + 50;
         let width = Math.floor((Math.random() * 300 + 100) / 40) * 40; // Snap to grid
         let height = 50 + Math.random() * 100;
-        let y = SCREEN_HEIGHT - height;
+        let y = canvas.height - height;
         y = Math.floor(y / 40) * 40; // Snap y to grid slightly
 
-        let prevY = platforms.length > 0 ? platforms[platforms.length - 1].y : SCREEN_HEIGHT - 100;
+        let prevY = platforms.length > 0 ? platforms[platforms.length - 1].y : canvas.height - 100;
         y = prevY + (Math.random() * 160 - 80); 
-        if (y > SCREEN_HEIGHT - 80) y = SCREEN_HEIGHT - 80;
+        if (y > canvas.height - 80) y = canvas.height - 80;
         if (y < 200) y = 200;
 
-        let newPlat = new Platform(lastPlatformX + gap, y, width, SCREEN_HEIGHT - y);
+        let newPlat = new Platform(lastPlatformX + gap, y, width, canvas.height - y);
         platforms.push(newPlat);
         lastPlatformX += gap + width;
 
@@ -603,7 +594,7 @@ function initGame() {
     // Ensure canvas is correctly sized for the new game
     resizeGame();
 
-    let startPlat = new Platform(50, SCREEN_HEIGHT - 120, 520, 120);
+    let startPlat = new Platform(50, canvas.height - 120, 520, 120);
     platforms.push(startPlat);
     lastPlatformX = 50 + 520;
 
