@@ -28,6 +28,76 @@ const gameOverScreen = document.getElementById('game-over-screen');
 
 highScoreEl.innerText = highScore;
 
+// --- SOUND MANAGER ---
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContext();
+
+class SoundManager {
+    playJump() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    playCoin() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(900, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(1200, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+    }
+
+    playHit() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+    }
+    
+    playPowerUp() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        // Simple arpeggio
+        [440, 554, 659].forEach((freq, i) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const startTime = audioCtx.currentTime + i * 0.1;
+            gain.gain.setValueAtTime(0.1, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(startTime);
+            osc.stop(startTime + 0.2);
+        });
+    }
+}
+const sounds = new SoundManager();
+
 // Input Handling
 const keys = {
     right: false,
@@ -55,6 +125,8 @@ window.addEventListener('keyup', (e) => {
 // Entities
 class Player {
     constructor() {
+        this.baseWidth = 30;
+        this.baseHeight = 30;
         this.width = 30;
         this.height = 30;
         this.x = 100;
@@ -63,6 +135,11 @@ class Player {
         this.velY = 0;
         this.isGrounded = false;
         this.color = '#ff0000'; // Mario Red
+        
+        // Power-up states
+        this.isBig = false;
+        this.isInvincible = false;
+        this.invincibleTimer = 0;
     }
 
     update() {
@@ -78,9 +155,18 @@ class Player {
         this.x += this.velX;
         this.y += this.velY;
 
-        // Floor Collision (Safety net, though we should rely on platforms)
+        // Floor Collision
         if (this.y + this.height > SCREEN_HEIGHT + 200) {
+            sounds.playHit();
             gameOver();
+        }
+        
+        // Invincibility Timer
+        if (this.isInvincible) {
+            this.invincibleTimer--;
+            if (this.invincibleTimer <= 0) {
+                this.isInvincible = false;
+            }
         }
     }
 
@@ -88,20 +174,58 @@ class Player {
         if (this.isGrounded) {
             this.velY = JUMP_FORCE;
             this.isGrounded = false;
+            sounds.playJump();
         }
+    }
+    
+    grow() {
+        if (!this.isBig) {
+            this.isBig = true;
+            this.width = 40;
+            this.height = 50;
+            this.y -= 20; // Pop up so we don't clip ground
+            sounds.playPowerUp();
+        }
+    }
+    
+    shrink() {
+        if (this.isBig) {
+            this.isBig = false;
+            this.width = this.baseWidth;
+            this.height = this.baseHeight;
+            this.isInvincible = true;
+            this.invincibleTimer = 60; // 1 second i-frames
+            sounds.playHit();
+        } else {
+            sounds.playHit();
+            gameOver();
+        }
+    }
+    
+    makeInvincible() {
+        this.isInvincible = true;
+        this.invincibleTimer = 600; // 10 seconds
+        sounds.playPowerUp();
     }
 
     draw(ctx, camX) {
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x - camX, this.y, this.width, this.height);
+        if (this.isInvincible && Math.floor(Date.now() / 50) % 2 === 0) {
+             // Flicker effect
+             ctx.globalAlpha = 0.5;
+        }
         
-        // Eyes (to see direction)
+        ctx.fillStyle = this.isInvincible ? '#00ffff' : this.color;
+        ctx.fillRect(this.x - camX, this.y, this.width, this.height);
+        ctx.globalAlpha = 1.0;
+        
+        // Eyes
         ctx.fillStyle = 'white';
-        let eyeOffsetX = this.velX >= 0 ? 18 : 4;
-        ctx.fillRect(this.x - camX + eyeOffsetX, this.y + 4, 8, 8);
+        let eyeOffsetX = this.velX >= 0 ? (this.width - 12) : 4;
+        let eyeY = this.isBig ? 10 : 4;
+        ctx.fillRect(this.x - camX + eyeOffsetX, this.y + eyeY, 8, 8);
         ctx.fillStyle = 'black';
-        let pupilOffsetX = this.velX >= 0 ? 22 : 4;
-        ctx.fillRect(this.x - camX + pupilOffsetX, this.y + 6, 4, 4);
+        let pupilOffsetX = this.velX >= 0 ? (this.width - 8) : 4;
+        ctx.fillRect(this.x - camX + pupilOffsetX, this.y + eyeY + 2, 4, 4);
     }
 }
 
@@ -111,15 +235,13 @@ class Platform {
         this.y = y;
         this.width = width;
         this.height = height;
-        this.color = '#8B4513'; // Ground Brown
-        this.grassColor = '#32CD32'; // Grass Green
+        this.color = '#8B4513';
+        this.grassColor = '#32CD32';
     }
 
     draw(ctx, camX) {
-        // Ground
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x - camX, this.y, this.width, this.height);
-        // Grass Top
         ctx.fillStyle = this.grassColor;
         ctx.fillRect(this.x - camX, this.y, this.width, 10);
     }
@@ -135,10 +257,12 @@ class Enemy {
         this.range = range;
         this.speed = 2;
         this.dir = 1;
-        this.color = '#800000'; // Goomba maroon
+        this.color = '#800000'; // Goomba
+        this.isDead = false;
     }
 
     update() {
+        if (this.isDead) return;
         this.x += this.speed * this.dir;
         if (this.x > this.startX + this.range || this.x < this.startX) {
             this.dir *= -1;
@@ -146,15 +270,80 @@ class Enemy {
     }
 
     draw(ctx, camX) {
+        if (this.isDead) return;
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x - camX, this.y, this.width, this.height);
-        // Eyes
         ctx.fillStyle = 'white';
         ctx.fillRect(this.x - camX + 5, this.y + 5, 8, 8);
         ctx.fillRect(this.x - camX + 17, this.y + 5, 8, 8);
         ctx.fillStyle = 'black';
         ctx.fillRect(this.x - camX + 7, this.y + 7, 4, 4);
         ctx.fillRect(this.x - camX + 19, this.y + 7, 4, 4);
+    }
+}
+
+class FlyingEnemy extends Enemy {
+    constructor(x, y, range) {
+        super(x, y, range);
+        this.color = '#FF4500'; // Orange Red
+        this.baseY = y;
+        this.angle = 0;
+    }
+    
+    update() {
+        if (this.isDead) return;
+        this.x -= 2; // Always moves left
+        this.angle += 0.1;
+        this.y = this.baseY + Math.sin(this.angle) * 50;
+    }
+    
+    draw(ctx, camX) {
+        if (this.isDead) return;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x - camX + 15, this.y + 15, 15, 0, Math.PI * 2);
+        ctx.fill();
+        // Wings
+        ctx.fillStyle = 'white';
+        ctx.fillRect(this.x - camX - 5, this.y + 5, 10, 10);
+        ctx.fillRect(this.x - camX + 25, this.y + 5, 10, 10);
+    }
+}
+
+class PowerUp {
+    constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.width = 20;
+        this.height = 20;
+        this.type = type; // 'mushroom' or 'star'
+        this.collected = false;
+    }
+    
+    draw(ctx, camX) {
+        if (this.collected) return;
+        if (this.type === 'mushroom') {
+            ctx.fillStyle = 'red';
+            ctx.fillRect(this.x - camX, this.y, 20, 20);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(this.x - camX + 5, this.y + 5, 5, 5);
+            ctx.fillRect(this.x - camX + 12, this.y + 10, 5, 5);
+        } else if (this.type === 'star') {
+            ctx.fillStyle = 'yellow';
+            ctx.beginPath();
+            ctx.moveTo(this.x - camX + 10, this.y);
+            ctx.lineTo(this.x - camX + 13, this.y + 7);
+            ctx.lineTo(this.x - camX + 20, this.y + 7);
+            ctx.lineTo(this.x - camX + 15, this.y + 12);
+            ctx.lineTo(this.x - camX + 17, this.y + 20);
+            ctx.lineTo(this.x - camX + 10, this.y + 15);
+            ctx.lineTo(this.x - camX + 3, this.y + 20);
+            ctx.lineTo(this.x - camX + 5, this.y + 12);
+            ctx.lineTo(this.x - camX, this.y + 7);
+            ctx.lineTo(this.x - camX + 7, this.y + 7);
+            ctx.closePath();
+            ctx.fill();
+        }
     }
 }
 
@@ -188,26 +377,22 @@ let player;
 let platforms = [];
 let enemies = [];
 let coins = [];
+let powerups = [];
 
 // Level Generation
 let lastPlatformX = 0;
 
 function generateChunk() {
-    // Determine start X (either 0 or after the last platform)
     let startX = lastPlatformX;
 
-    // Generate platforms forward until we have enough buffer
     while (lastPlatformX < cameraX + SCREEN_WIDTH * 2) {
-        let gap = Math.random() * 150 + 50; // Random gap 50-200
-        let width = Math.random() * 300 + 100; // Platform width 100-400
-        let height = 50 + Math.random() * 100; // Random height variation relative to bottom
+        let gap = Math.random() * 150 + 50;
+        let width = Math.random() * 300 + 100;
+        let height = 50 + Math.random() * 100;
         let y = SCREEN_HEIGHT - height;
 
-        // Variation in Y (platforms going up and down)
-        // Keep it reachable
         let prevY = platforms.length > 0 ? platforms[platforms.length - 1].y : SCREEN_HEIGHT - 100;
         y = prevY + (Math.random() * 160 - 80); 
-        // Clamp Y
         if (y > SCREEN_HEIGHT - 50) y = SCREEN_HEIGHT - 50;
         if (y < 200) y = 200;
 
@@ -215,12 +400,15 @@ function generateChunk() {
         platforms.push(newPlat);
         lastPlatformX += gap + width;
 
-        // Chance to spawn enemy
+        // Enemies
         if (width > 200 && Math.random() > 0.4) {
             enemies.push(new Enemy(newPlat.x + 50, newPlat.y - 30, width - 100));
+        } else if (Math.random() > 0.8) {
+             // Flying Enemy in the gap
+             enemies.push(new FlyingEnemy(newPlat.x - 50, newPlat.y - 100, 0));
         }
 
-        // Chance to spawn coins
+        // Coins
         if (Math.random() > 0.3) {
             let numCoins = Math.floor(Math.random() * 5) + 1;
             let startCoinX = newPlat.x + (width - (numCoins * 30)) / 2;
@@ -228,12 +416,18 @@ function generateChunk() {
                 coins.push(new Coin(startCoinX + i * 30, newPlat.y - 50 - (Math.random() * 50)));
             }
         }
+        
+        // Powerups
+        if (Math.random() > 0.9) {
+            let type = Math.random() > 0.5 ? 'mushroom' : 'star';
+            powerups.push(new PowerUp(newPlat.x + width/2, newPlat.y - 30, type));
+        }
     }
 
-    // Cleanup old entities
     platforms = platforms.filter(p => p.x + p.width > cameraX - 200);
-    enemies = enemies.filter(e => e.x > cameraX - 200);
+    enemies = enemies.filter(e => e.x > cameraX - 200 && !e.isDead);
     coins = coins.filter(c => c.x > cameraX - 200 && !c.collected);
+    powerups = powerups.filter(p => p.x > cameraX - 200 && !p.collected);
 }
 
 function initGame() {
@@ -241,11 +435,11 @@ function initGame() {
     platforms = [];
     enemies = [];
     coins = [];
+    powerups = [];
     score = 0;
     cameraX = 0;
-    lastPlatformX = 0; // Reset generation pointer
+    lastPlatformX = 0;
 
-    // Create starting platform
     let startPlat = new Platform(50, SCREEN_HEIGHT - 100, 500, 100);
     platforms.push(startPlat);
     lastPlatformX = 50 + 500;
@@ -267,29 +461,20 @@ function checkCollisions() {
 
     // Platform Collision
     for (let plat of platforms) {
-        // AABB Collision
         if (player.x < plat.x + plat.width &&
             player.x + player.width > plat.x &&
             player.y < plat.y + plat.height &&
             player.y + player.height > plat.y) {
             
-            // Resolve Collision
-            // Check previous position to determine side of collision
             let prevY = player.y - player.velY;
-            
-            // Land on top
             if (prevY + player.height <= plat.y) {
                 player.y = plat.y - player.height;
                 player.velY = 0;
                 player.isGrounded = true;
-            } 
-            // Hit bottom (ceiling)
-            else if (prevY >= plat.y + plat.height) {
+            } else if (prevY >= plat.y + plat.height) {
                 player.y = plat.y + plat.height;
                 player.velY = 0;
-            }
-            // Side collision (block movement)
-            else {
+            } else {
                 if (player.x < plat.x) player.x = plat.x - player.width;
                 else player.x = plat.x + plat.width;
                 player.velX = 0;
@@ -299,19 +484,23 @@ function checkCollisions() {
 
     // Enemy Collision
     for (let enemy of enemies) {
-        if (player.x < enemy.x + enemy.width - 5 &&
+        if (!enemy.isDead &&
+            player.x < enemy.x + enemy.width - 5 &&
             player.x + player.width > enemy.x + 5 &&
             player.y < enemy.y + enemy.height &&
             player.y + player.height > enemy.y) {
             
-            // Check if jumping on top
-            if (player.velY > 0 && player.y + player.height - player.velY < enemy.y + 10) {
-                // Kill enemy
-                enemy.x = -1000; // Move away
-                player.velY = -8; // Bounce
+            if (player.isInvincible) {
+                 enemy.isDead = true;
+                 score += 50;
+                 sounds.playHit();
+            } else if (player.velY > 0 && player.y + player.height - player.velY < enemy.y + 10) {
+                enemy.isDead = true;
+                player.velY = -8;
                 score += 50;
+                sounds.playHit();
             } else {
-                gameOver();
+                player.shrink();
             }
         }
     }
@@ -326,6 +515,21 @@ function checkCollisions() {
             
             coin.collected = true;
             score += 10;
+            sounds.playCoin();
+        }
+    }
+    
+    // PowerUp Collision
+    for (let p of powerups) {
+        if (!p.collected &&
+            player.x < p.x + p.width &&
+            player.x + player.width > p.x &&
+            player.y < p.y + p.height &&
+            player.y + player.height > p.y) {
+            
+            p.collected = true;
+            if (p.type === 'mushroom') player.grow();
+            if (p.type === 'star') player.makeInvincible();
         }
     }
 }
@@ -346,40 +550,26 @@ function update() {
     if (!gameRunning) return;
 
     player.update();
-    
-    // Update Camera (Keep player in middle-left)
     if (player.x > cameraX + 300) {
         cameraX = player.x - 300;
     }
 
-    // Enemies
     enemies.forEach(e => e.update());
-
-    // Coins
     coins.forEach(c => c.update());
 
     checkCollisions();
     generateChunk();
 
-    // Death by falling
-    if (player.y > SCREEN_HEIGHT) {
-        gameOver();
-    }
-
     scoreEl.innerText = score;
 }
 
 function draw() {
-    // Clear Screen
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Background Parallax (Simple Clouds/Hills could go here)
-    // For now just Sky Blue defined in CSS + Canvas clear
-
-    // Draw Entities relative to Camera
     platforms.forEach(p => p.draw(ctx, cameraX));
     enemies.forEach(e => e.draw(ctx, cameraX));
     coins.forEach(c => c.draw(ctx, cameraX));
+    powerups.forEach(p => p.draw(ctx, cameraX));
     player.draw(ctx, cameraX);
 }
 
@@ -391,6 +581,9 @@ function gameLoop() {
     }
 }
 
-// Button Listeners
-document.getElementById('start-btn').addEventListener('click', initGame);
+document.getElementById('start-btn').addEventListener('click', () => {
+    // Resume audio context on user interaction
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    initGame();
+});
 document.getElementById('restart-btn').addEventListener('click', initGame);
