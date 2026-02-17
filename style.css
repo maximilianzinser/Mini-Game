@@ -4,45 +4,40 @@ body {
     background-color: #202028;
     color: white;
     font-family: 'Courier New', Courier, monospace;
-    display: flex; /* Use flexbox for overall layout */
-    flex-direction: column; /* Stack vertically */
-    justify-content: center; /* Center content vertically if space allows */
-    align-items: center; /* Center content horizontally */
+    display: flex; /* Use flexbox to center the game-scale-wrapper */
+    justify-content: center;
+    align-items: center;
     height: 100vh;
     min-height: -webkit-fill-available; /* For iOS Safari */
     overflow: hidden; /* Hide any overflow */
 }
 
-#root-container {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1; /* Take all available vertical space */
-    position: relative; /* For absolute positioning of game-display-area */
-    width: 100%; /* Take full width */
-    max-width: 100%; /* Ensure it doesn't overflow */
-    max-height: 100%;
+#game-scale-wrapper {
+    position: relative; /* For absolute positioning of children */
+    width: 480px; /* Base width of the entire game content */
+    height: calc(270px + 80px); /* Base height of game (270) + controls (80px) */
+    overflow: hidden; /* Ensure nothing spills out during scaling */
+    transform-origin: center center; /* Scale from the center */
+    /* This element will be scaled by JavaScript */
+    box-shadow: 0 0 20px rgba(0,0,0,0.5); /* Re-apply container shadow */
+    border: 4px solid #444; /* Re-apply container border */
 }
 
-#game-display-area { /* Renamed from #game-container */
+#game-container { /* This is the main game view area (canvas + UI overlay) */
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex; /* Use flexbox to center canvas */
-    justify-content: center;
-    align-items: center;
-    overflow: hidden; /* Hide any overflow from canvas scaling */
-    box-shadow: 0 0 20px rgba(0,0,0,0.5); /* Keep shadow */
-    border: 4px solid #444; /* Keep border */
+    width: 100%; /* Fills the wrapper's width */
+    height: 270px; /* Fixed height for the game view part */
+    overflow: hidden; /* Hide anything that spills out of this area */
+    background-color: #87CEEB; /* Sky blue */
 }
 
 canvas {
-    display: block;
-    background-color: #87CEEB; /* Sky blue */
-    max-width: 100%; /* Ensure canvas scales down if necessary */
-    max-height: 100%; /* Ensure canvas scales down if necessary */
-    object-fit: contain; /* Scale content to fit, maintaining aspect ratio */
+    display: block; /* Remove extra space below inline elements */
+    width: 100%; /* Canvas fills its parent (game-container) */
+    height: 100%; /* Canvas fills its parent (game-container) */
+    /* Internal canvas dimensions (BASE_GAME_WIDTH/HEIGHT) are set by JS */
 }
 
 #ui-layer {
@@ -52,7 +47,6 @@ canvas {
     width: 100%;
     height: 100%;
     pointer-events: none; /* Let clicks pass through to canvas if needed, but we have buttons */
-    /* UI elements like score, screens will be positioned relative to this full-size layer */
 }
 
 #score-display {
@@ -121,7 +115,7 @@ button {
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    box-shadow: 0 4px #2E7D32; /* Keep original shadow for non-control buttons */
+    box-shadow: 0 4px #2E7D32;
     transition: transform 0.1s;
 }
 
@@ -129,45 +123,36 @@ button:active {
     transform: translateY(4px);
 }
 
-/* Mobile Controls Wrapper */
-#mobile-controls-wrapper {
-    width: 100%;
-    height: 90px; /* Fixed height for mobile controls area */
-    min-height: 90px; /* Ensure it maintains height */
+/* Mobile Controls - positioned absolutely within #game-scale-wrapper */
+#mobile-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%; /* Fills the wrapper's width */
+    height: 80px; /* Fixed height for controls within the wrapper */
     display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: rgba(0, 0, 0, 0.4); /* Background for controls area */
+    justify-content: space-between;
+    padding: 0 10px; /* Adjusted padding */
     box-sizing: border-box;
+    pointer-events: none; /* Container passes clicks, but inner buttons get events */
+    background-color: rgba(0, 0, 0, 0.4); /* Background for controls area */
     display: none; /* Hidden by default */
 }
 
 @media (hover: none) and (pointer: coarse) {
-    #mobile-controls-wrapper {
-        display: flex; /* Show wrapper if touch detected */
+    #mobile-controls {
+        display: flex; /* Show controls if touch detected */
     }
-}
-
-/* Mobile Controls inside wrapper */
-#mobile-controls {
-    position: relative; /* No longer absolute relative to viewport */
-    width: 100%;
-    max-width: 800px; /* Constrain width of controls if screen is very wide */
-    display: flex;
-    justify-content: space-between;
-    padding: 0 20px;
-    box-sizing: border-box;
-    pointer-events: auto; /* Enable clicks on buttons inside */
 }
 
 .control-btn {
     pointer-events: auto;
-    width: 65px; /* Adjusted size */
-    height: 65px; /* Adjusted size */
+    width: 60px; /* Adjusted size to fit 80px height */
+    height: 60px; /* Adjusted size */
     background: rgba(255, 255, 255, 0.3);
     border: 2px solid rgba(255, 255, 255, 0.5);
     border-radius: 50%;
-    font-size: 28px; /* Adjusted font size */
+    font-size: 24px; /* Adjusted font size */
     color: white;
     display: flex;
     justify-content: center;
@@ -180,17 +165,16 @@ button:active {
 }
 
 .control-btn:active {
-    /* No background change on active, only transform */
     transform: scale(0.95);
 }
 
 #dpad {
     display: flex;
-    align-items: flex-end;
+    align-items: center; /* Center dpad buttons vertically within controls height */
 }
 
 #action-buttons {
     display: flex;
-    align-items: flex-end;
+    align-items: center; /* Center action buttons vertically within controls height */
     gap: 10px;
 }

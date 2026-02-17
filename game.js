@@ -4,22 +4,44 @@ const ctx = canvas.getContext('2d');
 // Game Constants
 const BASE_GAME_WIDTH = 480;
 const BASE_GAME_HEIGHT = 270;
-
+const BASE_MOBILE_CONTROLS_HEIGHT = 80; // Must match CSS #mobile-controls height
 const GAME_ASPECT_RATIO = BASE_GAME_WIDTH / BASE_GAME_HEIGHT;
+
+// Total designed dimensions for the entire #game-scale-wrapper
+const TOTAL_DESIGNED_WIDTH = BASE_GAME_WIDTH;
+const TOTAL_DESIGNED_HEIGHT = BASE_GAME_HEIGHT + BASE_MOBILE_CONTROLS_HEIGHT;
 
 const GRAVITY = 0.5;
 const PLAYER_SPEED = 5;
 const JUMP_FORCE = -12;
 const TILE_SIZE = 40;
 
-// Dynamic Canvas Sizing
+// Dynamic Game Scaling
 function resizeGame() {
+    const gameScaleWrapper = document.getElementById('game-scale-wrapper');
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    let scaleFactor = 1;
+
+    // Calculate scale factor for the entire wrapper
+    // The wrapper's aspect ratio is TOTAL_DESIGNED_WIDTH / TOTAL_DESIGNED_HEIGHT
+    const wrapperAspectRatio = TOTAL_DESIGNED_WIDTH / TOTAL_DESIGNED_HEIGHT;
+
+    if (windowWidth / windowHeight > wrapperAspectRatio) {
+        // Window is wider than the game wrapper's aspect ratio, constrain by height
+        scaleFactor = windowHeight / TOTAL_DESIGNED_HEIGHT;
+    } else {
+        // Window is taller than the game wrapper's aspect ratio, constrain by width
+        scaleFactor = windowWidth / TOTAL_DESIGNED_WIDTH;
+    }
+
+    // Apply scale transformation
+    gameScaleWrapper.style.transform = `scale(${scaleFactor})`;
+
     // Internal canvas dimensions remain fixed
     canvas.width = BASE_GAME_WIDTH;
     canvas.height = BASE_GAME_HEIGHT;
-
-    // CSS will handle the scaling of the canvas element to fit the screen
-    // within the #game-display-area, maintaining aspect ratio.
 }
 
 window.addEventListener('load', resizeGame);
