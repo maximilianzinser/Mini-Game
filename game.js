@@ -14,24 +14,31 @@ const TILE_SIZE = 40;
 
 // Dynamic Canvas Sizing
 function resizeGame() {
-    const gameContainer = document.getElementById('game-container');
     let newWidth = window.innerWidth;
     let newHeight = window.innerHeight;
 
-    let currentAspectRatio = newWidth / newHeight;
+    const mobileControlsElement = document.getElementById('mobile-controls');
+    // Only consider controls height if they are actually displayed (via CSS media query)
+    const isMobileControlsVisible = window.getComputedStyle(mobileControlsElement).display !== 'none';
+    const mobileControlsReservedHeight = isMobileControlsVisible ? mobileControlsElement.offsetHeight : 0;
+    
+    let availableGameHeight = newHeight - mobileControlsReservedHeight;
+
+    let currentAspectRatio = newWidth / availableGameHeight;
 
     if (currentAspectRatio > GAME_ASPECT_RATIO) {
-        // Window is wider than game aspect ratio, constrain by height
-        newWidth = newHeight * GAME_ASPECT_RATIO;
+        // Window is wider than game aspect ratio, constrain by available height
+        newWidth = availableGameHeight * GAME_ASPECT_RATIO;
     } else {
         // Window is taller than game aspect ratio, constrain by width
-        newHeight = newWidth / GAME_ASPECT_RATIO;
+        availableGameHeight = newWidth / GAME_ASPECT_RATIO;
     }
 
+    // Now set the canvas style dimensions
     canvas.style.width = `${newWidth}px`;
-    canvas.style.height = `${newHeight}px`;
+    canvas.style.height = `${availableGameHeight}px`;
 
-    // Set internal canvas dimensions for rendering (fixed base resolution)
+    // Internal canvas dimensions remain fixed (e.g., 960x540)
     canvas.width = BASE_GAME_WIDTH;
     canvas.height = BASE_GAME_HEIGHT;
 }
